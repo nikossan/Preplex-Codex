@@ -107,20 +107,15 @@ export async function scrollToBottomOfConversations(
   while (true) {
     scrollRounds++;
 
-    await page.evaluate(() => {
-      // 1. Try to find a scrollable container first
-      const scrollable = Array.from(document.querySelectorAll('*')).find(el => {
-        const style = window.getComputedStyle(el);
-        return (style.overflowY === 'auto' || style.overflowY === 'scroll') && el.scrollHeight > el.clientHeight;
-      });
-
-      if (scrollable) {
-        scrollable.scrollTop = scrollable.scrollHeight;
-      } else {
-        // 2. Fallback to main window scroll
-        window.scrollTo(0, document.body.scrollHeight);
-      }
-    });
+    // Position mouse over the viewport centre so the wheel event hits the scrollable area,
+    // then dispatch a real wheel event — exactly like the user manually scrolling.
+    // This reliably triggers IntersectionObserver / scroll event listeners that Perplexity
+    // uses for lazy-loading, regardless of DOM structure changes.
+    const viewport = page.viewport();
+    const centerX = (viewport?.width ?? 1280) / 2;
+    const centerY = (viewport?.height ?? 800) / 2;
+    await page.mouse.move(centerX, centerY);
+    await page.mouse.wheel({ deltaY: 2000 });
 
     await sleep(scrollDelayMs);
 
